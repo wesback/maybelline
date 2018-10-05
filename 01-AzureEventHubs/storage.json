@@ -1,0 +1,64 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "projectName": {
+            "type": "string"
+        },
+        "apiVersions": {
+            "type": "object"
+        },
+        "uniqueNameFix": {
+            "type": "string"
+        },
+        "storageAccountName": {
+            "type": "string",
+            "metadata": {
+              "description": "Your existing storage account resource id where you want the blobs be archived"
+            }
+          },
+        "blobContainerName": {
+            "type": "string",
+            "metadata": {
+              "description": "Your existing storage container that you want the blobs archived in"
+            }
+          }
+    },
+    "variables": {
+        "apiVersions": "[parameters('apiVersions')]",
+        "uniqueNameFix": "[parameters('uniqueNameFix')]",
+        "location": "[resourceGroup().location]"
+    },
+    "resources": [
+      {
+        "name": "[parameters('storageAccountName')]",
+        "type": "Microsoft.Storage/storageAccounts",
+        "apiVersion": "[variables('apiVersions').storageAccounts]",
+        "location": "[variables('location')]",
+        "kind": "StorageV2",
+        "sku": {
+            "name": "Standard_LRS",
+            "tier": "Standard"
+        },
+        "properties": {
+            "accessTier": "Hot"
+        },
+        "resources": [
+            {
+                "name": "[concat('default/', parameters('blobContainerName'))]",
+                "type": "blobServices/containers",
+                "apiVersion": "[variables('apiVersions').storageAccounts]",
+                "dependsOn": [
+                    "[parameters('storageAccountName')]"
+                ]
+            }
+        ]
+      }
+    ],
+    "outputs": {
+        "storageAccountId": {
+            "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+            "type": "string"
+        }
+    }
+  }

@@ -1,0 +1,206 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "projectName": {
+            "type": "string"
+        },
+        "apiVersions": {
+            "type": "object"
+        },
+        "uniqueNameFix": {
+            "type": "string"
+        },"eventHubNamespaceName": {
+          "type": "string",
+          "metadata": {
+            "description": "Name of the EventHub namespace"
+          }
+        },
+        "eventhubSku": {
+          "type": "string",
+          "allowedValues": [
+            "Basic",
+            "Standard"
+          ],
+          "defaultValue": "Standard",
+          "metadata": {
+            "description": "The messaging tier for service Bus namespace"
+          }
+        },
+        "skuCapacity": {
+          "type": "int",
+          "allowedValues": [
+            1,
+            2,
+            4
+          ],
+          "defaultValue": 1,
+          "metadata": {
+            "description": "MessagingUnits for premium namespace"
+          }
+        },
+        "isAutoInflateEnabled": {
+          "type": "string",
+          "defaultValue": "True",
+          "allowedValues": [
+            "True",
+            "False"
+          ],
+          "metadata": {
+            "description": "Enable or disable AutoInflate"
+          }
+        },
+        "maximumThroughputUnits": {
+          "type": "int",
+          "defaultValue": 10,
+          "minValue": 0,
+          "maxValue": 20,
+          "metadata": {
+            "description": "Upper limit of throughput units when AutoInflate is enabled, vaule should be within 0 to 20 throughput units."
+          }
+        },
+        "eventHubName": {
+          "type": "string",
+          "metadata": {
+            "description": "Name of the Event Hub"
+          }
+        },
+        "messageRetentionInDays": {
+          "type": "int",
+          "defaultValue": 1,
+          "minValue": 1,
+          "maxValue": 7,
+          "metadata": {
+            "description": "How long to retain the data in Event Hub"
+          }
+        },
+        "partitionCount": {
+          "type": "int",
+          "defaultValue": 4,
+          "minValue": 2,
+          "maxValue": 32,
+          "metadata": {
+            "description": "Number of partitions chosen"
+          }
+        },
+        "captureEnabled": {
+          "type": "string",
+          "defaultValue": "true",
+          "allowedValues": [
+            "false",
+            "true"
+          ],
+          "metadata": {
+            "description": "Enable or disable the Capture feature for your Event Hub"
+          }
+        },
+        "captureEncodingFormat": {
+          "type": "string",
+          "defaultValue": "Avro",
+          "allowedValues": [
+            "Avro"
+          ],
+          "metadata": {
+            "description": "The encoding format Eventhub capture serializes the EventData when archiving to your storage"
+          }
+        },
+        "captureTime": {
+          "type": "int",
+          "defaultValue": 300,
+          "minValue": 60,
+          "maxValue": 900,
+          "metadata": {
+            "description": "the time window in seconds for the archival"
+          }
+        },
+        "captureSize": {
+          "type": "int",
+          "defaultValue": 314572800,
+          "minValue": 10485760,
+          "maxValue": 524288000,
+          "metadata": {
+            "description": "the size window in bytes for evetn hub capture"
+          }
+        },
+        "storageAccountResourceId": {
+          "type": "string",
+          "metadata": {
+            "description": "Your existing storage account resource id where you want the blobs be archived"
+          }
+        },
+        "blobContainerName": {
+          "type": "string",
+          "metadata": {
+            "description": "Container where you want the blobs be archived"
+          }
+      }
+        
+    },
+    "variables": {
+      "apiVersions": "[parameters('apiVersions')]",
+      "uniqueNameFix": "[parameters('uniqueNameFix')]",
+      "defaultSASKeyName": "RootManageSharedAccessKey",
+      "authRuleResourceId": "[resourceId('Microsoft.EventHub/namespaces/authorizationRules', parameters('eventHubNamespaceName'), variables('defaultSASKeyName'))]",
+      "captureNameFormat": "{Namespace}/{EventHub}/{PartitionId}/{Year}/{Month}/{Day}/{Hour}/{Minute}/{Second}",
+      "location": "[resourceGroup().location]"
+    },
+    "resources": [
+      {
+        "apiVersion": "[variables('apiVersions').eventHubs]",
+        "name": "[parameters('eventHubNamespaceName')]",
+        "type": "Microsoft.EventHub/namespaces",
+        "location": "[variables('location')]",
+        "sku": {
+          "name": "[parameters('eventhubSku')]",
+          "tier": "[parameters('eventhubSku')]",
+          "capacity": "[parameters('skuCapacity')]"
+        },
+        "tags": {
+          "tag1": "value1",
+          "tag2": "value2"
+        },
+        "properties": {
+          "isAutoInflateEnabled": "[parameters('isAutoInflateEnabled')]",
+          "maximumThroughputUnits": "[parameters('maximumThroughputUnits')]"
+        },
+        "resources": [
+          {
+            "apiVersion": "[variables('apiVersions').eventHubs]",
+            "name": "[parameters('eventHubName')]",
+            "type": "eventhubs",
+            "dependsOn": [
+              "[concat('Microsoft.EventHub/namespaces/', parameters('eventHubNamespaceName'))]"
+            ],
+            "properties": {
+              "messageRetentionInDays": "[parameters('messageRetentionInDays')]",
+              "partitionCount": "[parameters('partitionCount')]",
+              "captureDescription": {
+                "enabled": true,
+                "encoding": "[parameters('captureEncodingFormat')]",
+                "intervalInSeconds": "[parameters('captureTime')]",
+                "sizeLimitInBytes": "[parameters('captureSize')]",
+                "destination": {
+                  "name": "EventHubArchive.AzureBlockBlob",
+                  "properties": {
+                    "storageAccountResourceId": "[parameters('storageAccountResourceId')]",
+                    "blobContainer": "[parameters('blobContainerName')]",
+                    "archiveNameFormat": "[variables('captureNameFormat')]"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "NamespaceConnectionString": {
+        "type": "string",
+        "value": "[listkeys(variables('authRuleResourceId'), variables('apiVersions').eventHubs).primaryConnectionString]"
+      },
+      "SharedAccessPolicyPrimaryKey": {
+        "type": "string",
+        "value": "[listkeys(variables('authRuleResourceId'), variables('apiVersions').eventHubs).primaryKey]"
+      }
+    }
+  }

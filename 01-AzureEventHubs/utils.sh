@@ -28,6 +28,8 @@ function replace_versions() {
 		-e "s|<keyVaults>|${KEY_VAULTS_API_VERSIONS}|" \
 		-e "s|<eventGrids>|${EVENT_GRID_API_VERSIONS}|" \
 		-e "s|<automationAccounts>|${AUTOMATION_ACCOUNTS_API_VERSIONS}|" \
+		-e "s|<eventHubs>|${EVENT_HUBS_API_VERSIONS}|" \
+		-e "s|<dataBricks>|${DATABRICKS_API_VERSIONS}|" \
 		$1 >$2
 }
 

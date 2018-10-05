@@ -3,6 +3,7 @@
 # get our stuff
 . ./utils.sh
 . ./environment.sh
+. ./api-versions.sh
 
 # start clean
 clear
@@ -17,7 +18,7 @@ UNIQUE_WORKSPACE_NAME=databricks$UNIQUE_NAME_FIX
 
 #Start by logging in to your Azure account and selecting the right subscription
 display_progress "Logging in to subscription {$SUBSCRIPTION}"
-az login
+az login -o table
 az account set --subscription ${SUBSCRIPTION}
 
 # create the resource group
@@ -56,7 +57,7 @@ ESCAPED_SAS_TOKEN=$(echo ${STORAGE_SAS_TOKEN} | sed -e "s|\&|\\\&|g")
 azuredeploy_URI="${BLOB_BASE_URL}bootstrap/azuredeploy.json${STORAGE_SAS_TOKEN}"
 
 # replace with right versions
-#replace_versions azuredeploy.parameters.template.json azuredeploy.parameters.json
+replace_versions azuredeploy.parameters.template.json azuredeploy.parameters.json
 
 # replace additional parameters in parameter file
 sed --in-place=.bak \
